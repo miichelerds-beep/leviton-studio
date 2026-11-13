@@ -1,3 +1,368 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Leviton Studio | Mosaicos MDF</title><style>:root{font-family:system-ui,Arial;color:#20242b;background:#f5f3ef}*{box-sizing:border-box}body{margin:0}main{max-width:1050px;margin:auto;padding:24px}h1{margin-bottom:0}p{color:#62656c}.panel{background:white;border:1px solid #e6e3df;border-radius:16px;padding:20px;margin:16px 0}label{display:block;font-weight:600;margin:12px 0 6px}select,input,button{font:inherit;padding:10px;border-radius:8px;border:1px solid #c8c8c8;max-width:100%}button{background:#222;color:white;cursor:pointer;border:0;margin:12px 8px 0 0}button:disabled{opacity:.4;cursor:not-allowed}.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.preview{overflow:auto;background:#eae7e2;border-radius:10px;padding:20px;text-align:center}canvas{max-width:100%;height:auto;background:white;box-shadow:0 3px 14px #0002}.hint{font-size:13px}.status{font-weight:600}@media print{@page{size:A4 portrait;margin:0}body{background:white}main{display:none}#printRoot{display:block!important}.sheet{width:210mm;height:297mm;page-break-after:always;break-after:page;position:relative;overflow:hidden}.sheet img{position:absolute;width:200mm;height:280mm;left:5mm;top:8.5mm;object-fit:fill}.sheet:last-child{page-break-after:auto}}#printRoot{display:none}</style></head><body><main><h1>LEVITON STUDIO</h1><p>Transforme uma única arte em um mosaico de placas MDF 20 × 28 cm.</p><section class="panel"><label for="file">1. Escolha a imagem</label><input id="file" type="file" accept="image/*"><div class="controls"><div><label for="layout">2. Disposição das placas</label><select id="layout"><option value="3x1">3 placas · 3 × 1</option><option value="2x1">2 placas · 2 × 1</option><option value="2x2">4 placas · 2 × 2</option><option value="3x2">6 placas · 3 × 2</option><option value="4x2" selected>8 placas · 4 × 2</option><option value="3x3">9 placas · 3 × 3</option><option value="4x3">12 placas · 4 × 3</option></select></div><div><label for="orientation">Orientação de cada placa</label><select id="orientation"><option value="portrait">20 largura × 28 altura</option><option value="landscape">28 largura × 20 altura</option></select></div><div><label for="zoom">Zoom: <span id="zoomValue">100%</span></label><input id="zoom" type="range" min="100" max="300" value="100" step="1"></div><div><label for="gap">Espaço entre placas (prévia)</label><select id="gap"><option value="0">Sem espaço</option><option value="5">5 mm</option><option value="10">10 mm</option><option value="20">20 mm</option></select></div></div><p class="hint">Arraste a imagem na prévia para ajustar o enquadramento. O espaço entre placas é apenas visual: cada arquivo mantém a continuidade da arte.</p></section><section class="panel"><h2>Prévia do painel</h2><div class="preview"><canvas id="preview" width="800" height="560"></canvas></div><p id="info" class="status">Envie uma imagem para começar.</p><button id="download" disabled>Baixar placas em PNG</button><button id="print" disabled>Imprimir / salvar PDF A4</button><p class="hint">Na impressão: escala 100%, papel A4, sem cabeçalhos/rodapés, margens nenhuma. Se a impressora não aceitar a área de 20×28 cm, ajuste a configuração ou use os PNGs em outro programa. Faça primeiro uma impressão de teste e confira com régua.</p></section></main><div id="printRoot"></div><script>
-const $=id=>document.getElementById(id),canvas=$('preview'),ctx=canvas.getContext('2d');let img=null,offsetX=0,offsetY=0,drag=null;const CM_PX=60,EXPORT_PX_CM=120;function settings(){let [cols,rows]=$('layout').value.split('x').map(Number),portrait=$('orientation').value==='portrait';return {cols,rows,pw:portrait?20:28,ph:portrait?28:20,gap:+$('gap').value/10}}function transform(w,h){let {cols,rows,pw,ph}=settings(),W=cols*pw,H=rows*ph,base=Math.max(W/img.width,H/img.height),scale=base*(+$('zoom').value/100);return {W,H,scale,dx:(W-img.width*scale)/2+offsetX,dy:(H-img.height*scale)/2+offsetY}}function render(){let {cols,rows,pw,ph,gap}=settings(),W=cols*pw,H=rows*ph,ratio=Math.min(800/(W+(cols-1)*gap),560/(H+(rows-1)*gap));canvas.width=Math.round((W+(cols-1)*gap)*ratio);canvas.height=Math.round((H+(rows-1)*gap)*ratio);ctx.fillStyle='#ddd';ctx.fillRect(0,0,canvas.width,canvas.height);if(img){let t=transform();for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){let x=c*(pw+gap)*ratio,y=r*(ph+gap)*ratio;ctx.save();ctx.beginPath();ctx.rect(x,y,pw*ratio,ph*ratio);ctx.clip();ctx.fillStyle='#fff';ctx.fillRect(x,y,pw*ratio,ph*ratio);ctx.drawImage(img,x+(t.dx-c*pw)*ratio,y+(t.dy-r*ph)*ratio,img.width*t.scale*ratio,img.height*t.scale*ratio);ctx.restore();ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.strokeRect(x,y,pw*ratio,ph*ratio)}}else{ctx.fillStyle='#777';ctx.textAlign='center';ctx.font='16px system-ui';ctx.fillText('Sua arte aparecerá aqui',canvas.width/2,canvas.height/2)}$('info').textContent=`${cols*rows} placas · painel ${W} × ${H} cm (sem intervalos) · cada placa ${pw} × ${ph} cm`;$('zoomValue').textContent=$('zoom').value+'%'}function tile(c,r,density=EXPORT_PX_CM){let {pw,ph}=settings(),t=transform(),cv=document.createElement('canvas');cv.width=Math.round(pw*density);cv.height=Math.round(ph*density);let g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,cv.width,cv.height);g.drawImage(img,(t.dx-c*pw)*density,(t.dy-r*ph)*density,img.width*t.scale*density,img.height*t.scale*density);return cv}function downloadBlob(blob,name){let a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),10000)}$('file').addEventListener('change',e=>{let f=e.target.files[0];if(!f)return;let url=URL.createObjectURL(f),im=new Image();im.onload=()=>{img=im;offsetX=offsetY=0;$('zoom').value=100;$('download').disabled=$('print').disabled=false;render();URL.revokeObjectURL(url)};im.src=url});for(let id of ['layout','orientation','zoom','gap'])$(id).addEventListener('input',()=>{if(id==='layout'||id==='orientation'){offsetX=offsetY=0}render()});canvas.addEventListener('pointerdown',e=>{if(!img)return;drag={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId)});canvas.addEventListener('pointermove',e=>{if(!drag||!img)return;let {W}=transform();let factor=W/(canvas.width);offsetX+=(e.clientX-drag.x)*factor;offsetY+=(e.clientY-drag.y)*factor;drag={x:e.clientX,y:e.clientY};render()});canvas.addEventListener('pointerup',()=>drag=null);canvas.addEventListener('pointercancel',()=>drag=null);$('download').onclick=async()=>{let {cols,rows}=settings();for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){let cv=tile(c,r);let blob=await new Promise(resolve=>cv.toBlob(resolve,'image/png'));downloadBlob(blob,`leviton_linha-${r+1}_coluna-${c+1}.png`);await new Promise(resolve=>setTimeout(resolve,220))}};$('print').onclick=()=>{let {cols,rows}=settings(),root=$('printRoot');root.innerHTML='';for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){let page=document.createElement('div');page.className='sheet';let im=document.createElement('img');im.src=tile(c,r,45).toDataURL('image/jpeg',.94);page.append(im);root.append(page)}setTimeout(()=>window.print(),300)};render();
-</script></body></html>
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leviton Studio</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #f5f2ee;
+  color: #25242a;
+  font-family: Arial, sans-serif;
+}
+main { max-width: 1100px; margin: auto; padding: 24px; }
+h1 { margin-bottom: 6px; }
+p { color: #666; line-height: 1.5; }
+.card {
+  background: white;
+  border: 1px solid #e4dfda;
+  border-radius: 16px;
+  padding: 20px;
+  margin: 18px 0;
+}
+.controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+label { display: block; font-weight: bold; font-size: 14px; }
+input, select {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: white;
+}
+input[type="range"] { padding: 0; }
+button {
+  border: none;
+  border-radius: 8px;
+  padding: 13px 17px;
+  background: #24242a;
+  color: white;
+  cursor: pointer;
+  margin: 5px;
+}
+button:disabled { opacity: .4; }
+.preview-area {
+  background: #eae7e3;
+  padding: 18px;
+  border-radius: 12px;
+  text-align: center;
+  overflow: auto;
+}
+canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: auto;
+  touch-action: none;
+  cursor: grab;
+}
+.small { font-size: 13px; }
+#status { font-weight: bold; }
+</style>
+</head>
+<body>
+<main>
+<h1>LEVITON STUDIO</h1>
+<p>Transforme uma imagem em quadros contínuos de MDF 20 × 28 cm.</p>
+
+<div class="card">
+<h2>1. Escolha sua imagem</h2>
+<input id="file" type="file" accept="image/*">
+<p class="small">A imagem é processada no seu navegador.</p>
+</div>
+
+<div class="card">
+<h2>2. Configure as placas</h2>
+<div class="controls">
+<label>Colunas
+<input id="cols" type="number" min="1" max="12" value="4">
+</label>
+<label>Linhas
+<input id="rows" type="number" min="1" max="12" value="1">
+</label>
+<label>Orientação
+<select id="orientation">
+<option value="portrait">Em pé — 20 × 28 cm</option>
+<option value="landscape" selected>Deitada — 28 × 20 cm</option>
+</select>
+</label>
+<label>Enquadramento
+<select id="fit">
+<option value="cover">Preencher as placas</option>
+<option value="contain">Mostrar imagem inteira</option>
+</select>
+</label>
+<label>Zoom: <span id="zoomLabel">100%</span>
+<input id="zoom" type="range" min="100" max="250" value="100">
+</label>
+<label>Cor das áreas vazias
+<input id="bg" type="color" value="#ffffff">
+</label>
+</div>
+<p id="dimensions"></p>
+<p class="small">Arraste a imagem na prévia para reposicionar o desenho. O site ajusta o painel inteiro antes de dividir.</p>
+</div>
+
+<div class="card">
+<h2>3. Prévia do painel</h2>
+<div class="preview-area">
+<canvas id="preview" width="800" height="300"></canvas>
+</div>
+<p id="status">Selecione uma imagem para começar.</p>
+<button id="reset">Centralizar</button>
+<button id="download" disabled>Baixar placas PNG</button>
+<button id="print" disabled>Imprimir / Salvar PDF A4</button>
+<p class="small">Na impressão, escolha A4 e tamanho real (100%). Não use "ajustar à página". Faça uma folha de teste e confira as medidas com régua antes de produzir.</p>
+</div>
+</main>
+
+<script>
+const el = id => document.getElementById(id);
+const canvas = el("preview");
+const ctx = canvas.getContext("2d");
+
+let image = null;
+let offsetX = 0;
+let offsetY = 0;
+let drag = null;
+const DPI = 300;
+const PXCM = DPI / 2.54;
+
+function config() {
+  const cols = Math.max(1, Math.min(12, Number(el("cols").value) || 1));
+  const rows = Math.max(1, Math.min(12, Number(el("rows").value) || 1));
+  const landscape = el("orientation").value === "landscape";
+  const pw = landscape ? 28 : 20;
+  const ph = landscape ? 20 : 28;
+  return {
+    cols, rows, pw, ph,
+    w: cols * pw,
+    h: rows * ph,
+    fit: el("fit").value,
+    zoom: Number(el("zoom").value) / 100
+  };
+}
+
+function placement(w, h) {
+  const q = config();
+  const sx = w / image.width;
+  const sy = h / image.height;
+  const scale = (q.fit === "cover"
+    ? Math.max(sx, sy)
+    : Math.min(sx, sy)) * q.zoom;
+  const iw = image.width * scale;
+  const ih = image.height * scale;
+  return {
+    x: (w - iw) / 2 + offsetX * w,
+    y: (h - ih) / 2 + offsetY * h,
+    iw, ih
+  };
+}
+
+function drawWhole(context, w, h) {
+  context.fillStyle = el("bg").value;
+  context.fillRect(0, 0, w, h);
+  if (!image) return;
+  const p = placement(w, h);
+  context.drawImage(image, p.x, p.y, p.iw, p.ih);
+}
+
+function update() {
+  const q = config();
+  el("zoomLabel").textContent = Math.round(q.zoom * 100) + "%";
+  el("dimensions").textContent =
+    `${q.cols * q.rows} placas — ${q.cols} colunas × ${q.rows} linhas — painel ${q.w} × ${q.h} cm`;
+
+  const ratio = q.w / q.h;
+  let w = Math.round(Math.min(1100, Math.max(300, ratio * 400)));
+  let h = Math.round(w / ratio);
+  if (h > 1000) {
+    h = 1000;
+    w = Math.round(h * ratio);
+  }
+
+  canvas.width = w;
+  canvas.height = h;
+  drawWhole(ctx, w, h);
+
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 2;
+
+  for (let i = 1; i < q.cols; i++) {
+    const x = i * w / q.cols;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, h);
+    ctx.stroke();
+  }
+  for (let j = 1; j < q.rows; j++) {
+    const y = j * h / q.rows;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+
+  el("download").disabled = !image;
+  el("print").disabled = !image;
+
+  if (image) {
+    const p = placement(q.w * PXCM, q.h * PXCM);
+    const dpi = image.width / (p.iw / PXCM) * 2.54;
+    el("status").textContent =
+      `Imagem: ${image.width} × ${image.height} px. Resolução aproximada: ${Math.round(dpi)} DPI.`;
+  }
+}
+
+el("file").addEventListener("change", event => {
+  const file = event.target.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const loaded = new Image();
+  loaded.onload = () => {
+    image = loaded;
+    offsetX = offsetY = 0;
+    el("zoom").value = 100;
+    update();
+    URL.revokeObjectURL(url);
+  };
+  loaded.onerror = () => alert("Não foi possível abrir a imagem.");
+  loaded.src = url;
+});
+
+["cols", "rows", "orientation", "fit", "zoom", "bg"].forEach(id => {
+  el(id).addEventListener("input", update);
+});
+
+el("reset").onclick = () => {
+  offsetX = offsetY = 0;
+  el("zoom").value = 100;
+  update();
+};
+
+canvas.addEventListener("pointerdown", e => {
+  if (!image) return;
+  drag = { x: e.clientX, y: e.clientY, ox: offsetX, oy: offsetY };
+  canvas.setPointerCapture(e.pointerId);
+});
+
+canvas.addEventListener("pointermove", e => {
+  if (!drag) return;
+  const rect = canvas.getBoundingClientRect();
+  offsetX = drag.ox + (e.clientX - drag.x) / rect.width;
+  offsetY = drag.oy + (e.clientY - drag.y) / rect.height;
+  update();
+});
+
+canvas.addEventListener("pointerup", () => drag = null);
+canvas.addEventListener("pointercancel", () => drag = null);
+
+function tiles() {
+  const q = config();
+  const W = Math.round(q.w * PXCM);
+  const H = Math.round(q.h * PXCM);
+  const full = document.createElement("canvas");
+  full.width = W;
+  full.height = H;
+  drawWhole(full.getContext("2d"), W, H);
+
+  const result = [];
+  for (let row = 0; row < q.rows; row++) {
+    for (let col = 0; col < q.cols; col++) {
+      const x0 = Math.round(col * W / q.cols);
+      const x1 = Math.round((col + 1) * W / q.cols);
+      const y0 = Math.round(row * H / q.rows);
+      const y1 = Math.round((row + 1) * H / q.rows);
+
+      const tile = document.createElement("canvas");
+      tile.width = x1 - x0;
+      tile.height = y1 - y0;
+      tile.getContext("2d").drawImage(
+        full, x0, y0, tile.width, tile.height,
+        0, 0, tile.width, tile.height
+      );
+      result.push(tile);
+    }
+  }
+  return result;
+}
+
+el("download").onclick = async () => {
+  if (!image) return;
+  const q = config();
+  const parts = tiles();
+  for (let i = 0; i < parts.length; i++) {
+    const a = document.createElement("a");
+    a.href = parts[i].toDataURL("image/png");
+    a.download = `placa_${String(i + 1).padStart(2, "0")}_${q.pw}x${q.ph}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    await new Promise(resolve => setTimeout(resolve, 300));
+  }
+  alert("Placas geradas! Autorize vários downloads se o navegador solicitar.");
+};
+
+el("print").onclick = () => {
+  if (!image) return;
+  const q = config();
+  const parts = tiles();
+  const landscape = q.pw > q.ph;
+  const pageW = landscape ? 29.7 : 21;
+  const pageH = landscape ? 21 : 29.7;
+
+  const win = window.open("", "_blank");
+  if (!win) {
+    alert("Permita janelas pop-up para imprimir.");
+    return;
+  }
+
+  const pages = parts.map((part, i) =>
+    `<div class="page"><img src="${part.toDataURL("image/png")}" alt="Placa ${i + 1}"></div>`
+  ).join("");
+
+  win.document.write(`<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>Leviton Studio - Impressão</title>
+<style>
+@page { size: A4 ${landscape ? "landscape" : "portrait"}; margin: 0; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+.page {
+  position: relative;
+  width: ${pageW}cm;
+  height: ${pageH}cm;
+  break-after: page;
+  page-break-after: always;
+  overflow: hidden;
+}
+.page:last-child { break-after: auto; page-break-after: auto; }
+.page img {
+  position: absolute;
+  left: ${(pageW - q.pw) / 2}cm;
+  top: ${(pageH - q.ph) / 2}cm;
+  width: ${q.pw}cm;
+  height: ${q.ph}cm;
+  display: block;
+}
+@media screen {
+  body { background: #ddd; }
+  .page { background: white; margin: 20px auto; }
+}
+</style></head>
+<body>${pages}</body></html>`);
+  win.document.close();
+  win.onload = () => setTimeout(() => win.print(), 500);
+};
+
+update();
+</script>
+</body>
+</html>
